@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
-import { Lightbulb, Sparkles, Video, BookOpen, Layers, Plus } from 'lucide-react';
+import axios from 'axios';
+import { Lightbulb, Sparkles, Video, BookOpen, Layers, Plus, Loader2 } from 'lucide-react';
 
 export default function Ideas() {
-  const [niche, setNiche] = useState('');
+  const location = useLocation();
+  const [niche, setNiche] = useState(location.state?.trendName || '');
   const [selectedType, setSelectedType] = useState('Reels');
+  const [ideas, setIdeas] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   const contentTypes = [
     { name: 'Reels', icon: <Video size={16} /> },
@@ -12,11 +17,28 @@ export default function Ideas() {
     { name: 'Stories', icon: <BookOpen size={16} /> },
   ];
 
-  const mockIdeas = [
-    { title: "Day in the Life of a Dev", description: "Showcase your setup, morning routine, and the 'Aura' of your coding environment.", tag: "Viral" },
-    { title: "3 Tools You Need in 2026", description: "Highlight your app along with 2 other productivity tools for a professional aesthetic.", tag: "Educational" },
-    { title: "The Reality of Full-Stack", description: "A comedic take on CSS vs Backend logic struggles.", tag: "Relatable" },
-  ];
+  const generateIdeas = async () => {
+    if (!niche) return;
+    setLoading(true);
+    try {
+      const res = await axios.post('http://localhost:5000/api/ideas', {
+        niche: niche,
+        type: selectedType
+      });
+      setIdeas(res.data);
+    } catch (err) {
+      console.error("Failed to fetch ideas", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-generate if we came from the Trending page
+  useEffect(() => {
+    if (location.state?.trendName) {
+      generateIdeas();
+    }
+  }, [location.state]);
 
   return (
     <div className='flex min-h-screen bg-[#050508] text-white'>
@@ -30,13 +52,13 @@ export default function Ideas() {
           <p className='text-slate-400 mt-2 text-lg'>AI-driven concepts tailored to your niche.</p>
         </header>
 
-        {/* Search & Filter Section */}
         <div className='bg-[#0f111a] border border-slate-800 p-8 rounded-[2.5rem] mb-10'>
           <div className='flex flex-col md:flex-row gap-4'>
             <input
               type="text"
-              placeholder="What's your niche? (e.g., Software Engineering, Fitness)"
+              placeholder="What's your niche? (e.g., Morning Routine, Fitness)"
               className='flex-1 bg-slate-900/50 border border-slate-800 p-4 rounded-2xl focus:outline-none focus:border-violet-500 transition-all text-sm'
+              value={niche}
               onChange={(e) => setNiche(e.target.value)}
             />
             <div className='flex gap-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800'>
@@ -54,16 +76,20 @@ export default function Ideas() {
                 </button>
               ))}
             </div>
-            <button className='bg-white text-black px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-violet-600 hover:text-white transition-all transform active:scale-95'>
-              <Sparkles size={18} /> Generate
+            <button 
+              onClick={generateIdeas}
+              disabled={loading}
+              className='bg-white text-black px-8 py-4 rounded-2xl font-bold flex items-center gap-2 hover:bg-violet-600 hover:text-white transition-all transform active:scale-95'
+            >
+              {loading ? <Loader2 className="animate-spin" size={18} /> : <Sparkles size={18} />}
+              {loading ? "Analyzing..." : "Generate"}
             </button>
           </div>
         </div>
 
-        {/* Ideas Grid */}
         <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
-          {mockIdeas.map((idea, index) => (
-            <div key={index} className='group bg-[#0f111a] border border-slate-800 p-8 rounded-[2.5rem] hover:border-violet-500/50 transition-all cursor-pointer relative overflow-hidden'>
+          {ideas.map((idea, index) => (
+            <div key={index} className='group bg-[#0f111a] border border-slate-800 p-8 rounded-[2.5rem] hover:border-violet-500/50 transition-all cursor-pointer relative overflow-hidden animate-in fade-in slide-in-from-bottom-4'>
               <div className='absolute top-0 right-0 p-4'>
                 <span className='text-[10px] font-black uppercase tracking-widest bg-violet-500/10 text-violet-400 px-3 py-1 rounded-full'>
                   {idea.tag}
@@ -79,19 +105,16 @@ export default function Ideas() {
                 {idea.description}
               </p>
 
-              <button className='w-full flex items-center justify-center gap-2 py-3 bg-slate-900 rounded-xl text-xs font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition-all'>
-                <Plus size={14} /> Add to Planner
-              </button>
+              
             </div>
           ))}
 
-          {/* Create New Concept Placeholder */}
-          <div className='border-2 border-dashed border-slate-800 rounded-[2.5rem] p-8 flex flex-col items-center justify-center text-center group hover:border-violet-500/30 transition-all cursor-pointer'>
-            <div className='w-12 h-12 rounded-full bg-slate-900 flex items-center justify-center mb-4 text-slate-500 group-hover:text-violet-400 transition-colors'>
-              <Plus size={24} />
+          {/* Placeholder when empty */}
+          {!loading && ideas.length === 0 && (
+            <div className='col-span-full py-20 text-center border-2 border-dashed border-slate-800 rounded-[2.5rem]'>
+              <p className='text-slate-500 font-medium'>Enter a trend or niche to unlock viral concepts.</p>
             </div>
-            <p className='text-sm font-bold text-slate-500'>Custom Concept</p>
-          </div>
+          )}
         </div>
       </main>
     </div>

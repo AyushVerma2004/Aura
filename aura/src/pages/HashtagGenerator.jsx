@@ -1,29 +1,47 @@
 import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
-import { Copy, Sparkles, Hash } from 'lucide-react';
+import { Copy, Sparkles, Hash, Loader2 } from 'lucide-react';
+import axios from 'axios';
 
 export default function HashtagGenerator() {
   const [idea, setIdea] = useState('');
   const [hashtags, setHashtags] = useState([]);
   const [copying, setCopying] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // Mock logic: In a real app, you could send 'idea' to an AI API
-  const generateHashtags = () => {
-    if (!idea) return;
-    
-    const baseTags = ['viral', 'foryou', 'trending', 'reels', 'explore'];
-    const topicTags = idea.toLowerCase().split(' ').filter(word => word.length > 3);
-    
-    // Combine base tags with words from the idea + some random growth tags
-    const generated = [...new Set([...topicTags, ...baseTags, 'growth', 'aura', 'contentcreator'])]
-      .sort(() => 0.5 - Math.random())
-      .slice(0, 15)
-      .map(tag => `#${tag}`);
+  const generateHashtags = async () => {
+    if (!idea || loading) return;
 
-    setHashtags(generated);
+    setLoading(true);
+    setHashtags([]); // Clear previous results while loading
+
+    try {
+      const res = await axios.post(
+        'http://localhost:5000/api/hashtags',
+        {
+          prompt: idea
+        }
+      );
+
+      console.log(res.data);
+
+      // Convert AI response string into array and clean up trailing punctuation
+      const tagsArray = res.data.hashtags
+        .split(/\s+/)
+        .map(tag => tag.replace(/[.,!]/g, '')) // Cleans commas/periods from AI response
+        .filter(tag => tag.startsWith('#'));
+
+      setHashtags(tagsArray);
+    } catch (err) {
+      console.error("Hashtag generation failed", err);
+      alert("Failed to generate hashtags. Please check if the server is running.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const copyToClipboard = () => {
+    if (hashtags.length === 0) return;
     navigator.clipboard.writeText(hashtags.join(' '));
     setCopying(true);
     setTimeout(() => setCopying(false), 2000);
@@ -46,18 +64,33 @@ export default function HashtagGenerator() {
           <div className='relative'>
             <input
               type="text"
-              placeholder="Describe your reel idea (e.g., 'Morning routine for developers')"
+              placeholder="Describe your reel idea (e.g., 'Morning routine for self-growth')"
               className='w-full bg-[#0f111a] border border-slate-800 p-6 rounded-2xl text-lg focus:outline-none focus:border-violet-500 focus:ring-1 focus:ring-violet-500 transition-all placeholder:text-slate-600'
               value={idea}
               onChange={(e) => setIdea(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && generateHashtags()}
+              disabled={loading}
             />
             <button 
               onClick={generateHashtags}
-              className='absolute right-4 top-4 bottom-4 bg-violet-600 hover:bg-violet-500 px-6 rounded-xl flex items-center gap-2 font-bold transition-all transform active:scale-95'
+              disabled={loading || !idea}
+              className={`absolute right-4 top-4 bottom-4 px-6 rounded-xl flex items-center gap-2 font-bold transition-all transform active:scale-95 ${
+                loading 
+                  ? 'bg-slate-800 text-slate-400 cursor-not-allowed' 
+                  : 'bg-violet-600 hover:bg-violet-500 text-white'
+              }`}
             >
-              <Sparkles size={18} />
-              Generate
+              {loading ? (
+                <>
+                  <Loader2 size={18} className="animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <Sparkles size={18} />
+                  Generate
+                </>
+              )}
             </button>
           </div>
 
@@ -91,10 +124,16 @@ export default function HashtagGenerator() {
             </div>
           )}
 
-          {/* Empty State / Hint */}
-          {hashtags.length === 0 && (
+          {/* Empty State / Loading State Hint */}
+          {!loading && hashtags.length === 0 && (
             <div className='text-center py-20 border-2 border-dashed border-slate-800 rounded-[2.5rem]'>
               <p className='text-slate-500 font-medium'>Type an idea above to see the magic happen.</p>
+            </div>
+          )}
+
+          {loading && hashtags.length === 0 && (
+            <div className='text-center py-20 border-2 border-dashed border-violet-900/30 bg-violet-950/5 rounded-[2.5rem] animate-pulse'>
+              <p className='text-violet-400 font-medium'>AURA is analyzing your idea...</p>
             </div>
           )}
         </div>
