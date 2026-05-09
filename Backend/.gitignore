@@ -1,21 +1,2 @@
-# backend env
-backend/.env
+.env
 
-# node modules
-node_modules/
-backend/node_modules/
-
-# build folders
-dist/
-build/
-
-# logs
-*.log
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# editor
-.vscode/
-.idea/
